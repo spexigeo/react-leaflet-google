@@ -3,7 +3,7 @@
 import GoogleMapsLoader from "google-maps";
 import * as L from "leaflet";
 
-GoogleMapsLoader.VERSION = "3.32";
+GoogleMapsLoader.VERSION = "quarterly";
 
 let google;
 
@@ -11,7 +11,7 @@ let google;
 // extends GridLayer
 L.GridLayer.GoogleMutant = L.GridLayer.extend({
   includes: L.Evented,
-  
+
   options: {
     minZoom: 0,
     maxZoom: 21,
@@ -27,25 +27,25 @@ L.GridLayer.GoogleMutant = L.GridLayer.extend({
     type: "HYBRID",
     maxNativeZoom: 21,
   },
-  
+
   initialize(options) {
     L.GridLayer.prototype.initialize.call(this, options);
     let self = this;
-    
+
     if ( options.asclientid ) {
       GoogleMapsLoader.CLIENT = options.googlekey;
     } else {
       GoogleMapsLoader.KEY = options.googlekey;
     }
-    
+
     GoogleMapsLoader.LIBRARIES = options.libraries || [];
-    
+
     if ( options.channel ) {
       GoogleMapsLoader.CHANNEL = options.channel;
     }
-    
+
     self._type = options.maptype || "SATELLITE";
-    
+
     GoogleMapsLoader.load(function(_google) {
       google = _google;
       self._ready = true;
@@ -53,80 +53,80 @@ L.GridLayer.GoogleMutant = L.GridLayer.extend({
       // self.
       self._initMutant();
       self._update();
-      
+
       if ( options.onAfterLoad ) {
         options.onAfterLoad(google);
       }
-      
+
       // this._ready = google.maps.Map !== undefined;
       // if (!this._ready) L.Google.asyncWait.push(this);
     });
-    
+
     // Couple data structures indexed by tile key
     this._tileCallbacks = {}; // Callbacks for promises for tiles that are expected
     this._freshTiles = {}; // Tiles from the mutant which haven't been requested yet
-    
+
     this._imagesPerTile = self._type === "HYBRID" ? 2 : 1;
     this.createTile =
       self._type === "HYBRID" ? this._createMultiTile : this._createSingleTile;
   },
-  
+
   onAdd(map) {
     L.GridLayer.prototype.onAdd.call(this, map);
     this._initMutantContainer();
-    
+
     // Will be called after callback passed in initialize function
     GoogleMapsLoader.load(
       function(google) {
         this._map = map;
-        
+
         this._initMutant();
-        
+
         map.on("viewreset", this._reset, this);
         map.on("move", this._update, this);
         map.on("zoomend", this._handleZoomAnim, this);
         map.on("resize", this._resize, this);
-        
+
         // 20px instead of 1em to avoid a slight overlap with google's attribution
         if ( map._controlCorners )
           map._controlCorners.bottomright.style.marginBottom = "20px";
-        
+
         this._reset();
         this._update();
       }.bind(this)
     );
   },
-  
+
   onRemove(map) {
     L.GridLayer.prototype.onRemove.call(this, map);
     map._container.removeChild(this._mutantContainer);
     this._mutantContainer = undefined;
-    
+
     map.off("viewreset", this._reset, this);
     map.off("move", this._update, this);
     map.off("zoomend", this._handleZoomAnim, this);
     map.off("resize", this._resize, this);
-    
+
     if ( map._controlCorners )
       map._controlCorners.bottomright.style.marginBottom = "0em";
   },
-  
+
   getAttribution() {
     return this.options.attribution;
   },
-  
+
   setOpacity(opacity) {
     this.options.opacity = opacity;
     if ( opacity < 1 ) {
       L.DomUtil.setOpacity(this._mutantContainer, opacity);
     }
   },
-  
+
   setElementSize(e, size) {
     e.style.width = size.x + "px";
     e.style.height = size.y + "px";
   },
-  
+
   _initMutantContainer() {
     if ( !this._mutantContainer ) {
       this._mutantContainer = L.DomUtil.create(
@@ -137,20 +137,20 @@ L.GridLayer.GoogleMutant = L.GridLayer.extend({
         "_MutantContainer_" + L.Util.stamp(this._mutantContainer);
       // 			this._mutantContainer.style.zIndex = 'auto';
       this._mutantContainer.style.pointerEvents = "none";
-      
+
       this._map.getContainer().appendChild(this._mutantContainer);
     }
-    
+
     this.setOpacity(this.options.opacity);
     this.setElementSize(this._mutantContainer, this._map.getSize());
-    
+
     this._attachObserver(this._mutantContainer);
   },
-  
+
   _initMutant() {
     if ( !this._ready || !this._mutantContainer ) return;
     this._mutantCenter = new google.maps.LatLng(0, 0);
-    
+
     let map = new google.maps.Map(this._mutantContainer, {
       center: this._mutantCenter,
       zoom: 0,
@@ -165,34 +165,34 @@ L.GridLayer.GoogleMutant = L.GridLayer.extend({
       styles: this.options.styles || {},
       backgroundColor: "transparent",
     });
-    
+
     this._mutant = map;
-    
+
     // 🍂event spawned
     // Fired when the mutant has been created.
     this.fire("spawned", {
       mapObject: map,
     });
   },
-  
+
   _attachObserver: function _attachObserver(node) {
     // 		console.log('Gonna observe', node);
-    
+
     let observer = new MutationObserver(this._onMutations.bind(this));
-    
+
     // pass in the target node, as well as the observer options
     observer.observe(node, {
       childList: true,
       subtree: true,
     });
   },
-  
+
   _onMutations: function _onMutations(mutations) {
     for ( let i = 0; i < mutations.length; ++i ) {
       let mutation = mutations[ i ];
       for ( let j = 0; j < mutation.addedNodes.length; ++j ) {
         let node = mutation.addedNodes[ j ];
-        
+
         if ( node instanceof HTMLImageElement ) {
           this._onMutatedImage(node);
         } else if ( node instanceof HTMLElement ) {
@@ -204,29 +204,29 @@ L.GridLayer.GoogleMutant = L.GridLayer.extend({
       }
     }
   },
-  
+
   // Only images which 'src' attrib match this will be considered for moving around.
   // Looks like some kind of string-based protobuf, maybe??
   // Only the roads (and terrain, and vector-based stuff) match this pattern
   _roadRegexp: /!1i(\d+)!2i(\d+)!3i(\d+)!/,
-  
+
   // On the other hand, raster imagery matches this other pattern
   _satRegexp: /x=(\d+)&y=(\d+)&z=(\d+)/,
-  
+
   // On small viewports, when zooming in/out, a static image is requested
   // This will not be moved around, just removed from the DOM.
   _staticRegExp: /StaticMapService\.GetMapImage/,
-  
+
   _onMutatedImage: function _onMutatedImage(imgNode) {
     // 		if (imgNode.src) {
     // 			console.log('caught mutated image: ', imgNode.src);
     // 		}
-    
+
     let coords;
     let match = imgNode.src.match(this._roadRegexp);
     let sublayer;
     let parent;
-    
+
     if ( match ) {
       coords = {
         z: match[ 1 ],
@@ -249,7 +249,7 @@ L.GridLayer.GoogleMutant = L.GridLayer.extend({
       // 			imgNode.style.zIndex = 0;
       sublayer = 0;
     }
-    
+
     if ( coords ) {
       let key = this._tileCoordsToKey(coords);
       imgNode.style.position = "absolute";
@@ -286,12 +286,12 @@ L.GridLayer.GoogleMutant = L.GridLayer.extend({
       }
     }
   },
-  
+
   // This will be used as this.createTile for 'roadmap', 'sat', 'terrain'
   _createSingleTile: function createTile(coords, done) {
     let key = this._tileCoordsToKey(coords);
     // console.log('Need:', key);
-    
+
     if ( key in this._freshTiles ) {
       let tile = this._freshTiles[ key ].pop();
       if ( !this._freshTiles[ key ].length ) {
@@ -318,17 +318,17 @@ L.GridLayer.GoogleMutant = L.GridLayer.extend({
         };
       })(tileContainer /* , key*/)
     );
-    
+
     return tileContainer;
   },
-  
+
   // This will be used as this.createTile for 'hybrid'
   _createMultiTile: function createTile(coords, done) {
     let key = this._tileCoordsToKey(coords);
-    
+
     let tileContainer = L.DomUtil.create("div");
     tileContainer.dataset.pending = this._imagesPerTile;
-    
+
     for ( let i = 0; i < this._imagesPerTile; i++ ) {
       let key2 = key + "/" + i;
       if ( key2 in this._freshTiles ) {
@@ -360,13 +360,13 @@ L.GridLayer.GoogleMutant = L.GridLayer.extend({
         );
       }
     }
-    
+
     if ( !parseInt(tileContainer.dataset.pending) ) {
       L.Util.requestAnimFrame(done);
     }
     return tileContainer;
   },
-  
+
   _checkZoomLevels() {
     // setting the zoom level on the Google map may result in a different zoom level than the one requested
     // (it won't go beyond the level for which they have data).
@@ -379,25 +379,25 @@ L.GridLayer.GoogleMutant = L.GridLayer.extend({
       this._map.setZoom(this._mutant.getZoom());
     }
   },
-  
+
   _reset() {
     this._initContainer();
   },
-  
+
   _update() {
     L.GridLayer.prototype._update.call(this);
     if ( !this._mutant ) return;
-    
+
     let center = this._map.getCenter();
     let _center = new google.maps.LatLng(center.lat, center.lng);
-    
+
     this._mutant.setCenter(_center);
     let zoom = this._map.getZoom();
     if ( zoom !== undefined ) {
       this._mutant.setZoom(Math.round(this._map.getZoom()));
     }
   },
-  
+
   _resize() {
     let size = this._map.getSize();
     if (
@@ -409,15 +409,15 @@ L.GridLayer.GoogleMutant = L.GridLayer.extend({
     if ( !this._mutant ) return;
     google.maps.event.trigger(this._mutant, "resize");
   },
-  
+
   _handleZoomAnim() {
     let center = this._map.getCenter();
     let _center = new google.maps.LatLng(center.lat, center.lng);
-    
+
     this._mutant.setCenter(_center);
     this._mutant.setZoom(Math.round(this._map.getZoom()));
   },
-  
+
   // Agressively prune _freshtiles when a tile with the same key is removed,
   // this prevents a problem where Leaflet keeps a loaded tile longer than
   // GMaps, so that GMaps makes two requests but Leaflet only consumes one,
@@ -435,7 +435,7 @@ L.GridLayer.GoogleMutant = L.GridLayer.extend({
       delete this._freshTiles[ key ];
       // 				console.log('Pruned spurious _freshTiles', key);
     }
-    
+
     return L.GridLayer.prototype._removeTile.call(this, key);
   },
 });

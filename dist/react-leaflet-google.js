@@ -1254,7 +1254,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	// Based on https://github.com/shramov/leaflet-plugins
 	// GridLayer like https://avinmathew.com/leaflet-and-google-maps/ , but using MutationObserver instead of jQuery
-	_googleMaps2.default.VERSION = "3.32";
+	_googleMaps2.default.VERSION = "quarterly";
 
 	var google = void 0;
 
@@ -1265,7 +1265,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  options: {
 	    minZoom: 0,
-	    maxZoom: 18,
+	    maxZoom: 21,
 	    tileSize: 256,
 	    subdomains: "abc",
 	    errorTileUrl: "",
@@ -1276,7 +1276,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // 🍂option type: String = 'roadmap'
 	    // Google's map type. Valid values are 'roadmap', 'satellite' or 'terrain'. 'hybrid' is not really supported.
 	    type: "HYBRID",
-	    maxNativeZoom: 18
+	    maxNativeZoom: 21
 	  },
 
 	  initialize: function initialize(options) {
@@ -1336,7 +1336,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      map.on("resize", this._resize, this);
 
 	      // 20px instead of 1em to avoid a slight overlap with google's attribution
-	      map._controlCorners.bottomright.style.marginBottom = "20px";
+	      if (map._controlCorners) map._controlCorners.bottomright.style.marginBottom = "20px";
 
 	      this._reset();
 	      this._update();
